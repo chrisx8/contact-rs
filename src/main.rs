@@ -48,13 +48,24 @@ fn index() -> Json<JsonResponse<'static>> {
     })
 }
 
-#[get("/contact")]
-fn contact_get() -> &'static str {
-    "why are u here???"
-}
-
 #[post("/contact", format = "json", data = "<message>")]
-async fn contact(message: Json<Message<'_>>) -> (Status, Json<Response<'_>>) {
+async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<JsonResponse<'_>>), Status> {
+    // validate hcaptcha first
+    let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
+    match hcaptcha_result {
+        Ok(_) => {}
+        Err(_e) => {
+            return Ok((
+                Status::BadRequest,
+                Json::from(JsonResponse {
+                    status: Status::BadRequest.code,
+                    message: "Captcha validation failed.",
+                }),
+            ))
+        }
+    };
+
+    // send email
     let mail_from = format!("{} <{}>", message.name, "from@localhost");
     let mail_subject = format!("[Contact Form] {}", message.subject);
     let m = mail::Mail {
@@ -64,15 +75,19 @@ async fn contact(message: Json<Message<'_>>) -> (Status, Json<Response<'_>>) {
         subject: mail_subject.as_str(),
         body: message.message,
     };
-
-    let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
-    match hcaptcha_result {
-        Ok(_) => {
-            mail::send_email(&m);
-            (Status::Created, Json::from(Response {status: "OK", message: "Thanks for reaching out!"}))
-        },
-        Err(_e) => {
-            (Status::BadRequest, Json::from(Response {status: "Error", message: "Something went wrong"}))
+    let mail_result = mail::send_email(&m);
+    // handle potential email errors & respond
+    match mail_result {
+        Ok(_) => Ok((
+            Status::Created,
+            Json::from(JsonResponse {
+                status: Status::Created.code,
+                message: "Thanks for reaching out!",
+            }),
+        )),
+        Err(e) => {
+            eprintln!("***\n{:#?}\n***", e);
+            Err(Status::InternalServerError)
         }
     }
 }
@@ -80,6 +95,6 @@ async fn contact(message: Json<Message<'_>>) -> (Status, Json<Response<'_>>) {
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .register("/", catchers![not_found])
-        .mount("/", routes![index, contact_get, contact])
+        .register("/", catchers![not_found, server_error])
+        .mount("/", routes![index, contact])
 }
