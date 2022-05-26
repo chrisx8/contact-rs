@@ -1,6 +1,8 @@
 #[macro_use] extern crate rocket;
+use rocket::http::Status;
 use rocket::serde::Deserialize;
-use rocket::serde::json::{ Json, Value, json };
+use rocket::serde::Serialize;
+use rocket::serde::json::Json;
 mod mail;
 mod hcaptcha;
 
@@ -12,6 +14,13 @@ struct Message<'r> {
     subject: &'r str,
     message: &'r str,
     h_captcha_response: &'r str,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+struct Response<'r> {
+    status: &'r str,
+    message: &'r str,
 }
 
 #[catch(404)]
@@ -30,18 +39,27 @@ fn contact_get() -> &'static str {
 }
 
 #[post("/contact", format = "json", data = "<message>")]
-fn contact(message: Json<Message<'_>>) -> Value {
-    let from = format!("{} <{}>", message.name, "from@localhost");
-    let from = from.as_str();
-    let to = "to@localhost";
-    let subject = format!("[Contact Form] {}", message.subject);
-    let subject = subject.as_str();
+async fn contact(message: Json<Message<'_>>) -> (Status, Json<Response<'_>>) {
+    let mail_from = format!("{} <{}>", message.name, "from@localhost");
+    let mail_subject = format!("[Contact Form] {}", message.subject);
+    let m = mail::Mail {
+        from: mail_from.as_str(),
+        reply_to: message.email,
+        to: "to@localhost",
+        subject: mail_subject.as_str(),
+        body: message.message,
+    };
 
-    mail::send_email(from, to, message.email, subject, message.message);
-    json!({
-        "status": "ok",
-        "message": "Thanks",
-    })
+    let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
+    match hcaptcha_result {
+        Ok(_) => {
+            mail::send_email(&m);
+            (Status::Created, Json::from(Response {status: "OK", message: "Thanks for reaching out!"}))
+        },
+        Err(_e) => {
+            (Status::BadRequest, Json::from(Response {status: "Error", message: "Something went wrong"}))
+        }
+    }
 }
 
 #[launch]
