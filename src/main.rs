@@ -2,6 +2,7 @@
 use rocket::serde::Deserialize;
 use rocket::serde::json::{ Json, Value, json };
 mod mail;
+mod hcaptcha;
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -10,7 +11,7 @@ struct Message<'r> {
     email: &'r str,
     subject: &'r str,
     message: &'r str,
-    // h_captcha_response: &'r str,
+    h_captcha_response: &'r str,
 }
 
 #[catch(404)]
