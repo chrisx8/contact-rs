@@ -1,10 +1,11 @@
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 use rocket::http::Status;
+use rocket::serde::json::Json;
 use rocket::serde::Deserialize;
 use rocket::serde::Serialize;
-use rocket::serde::json::Json;
-mod mail;
 mod hcaptcha;
+mod mail;
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -18,19 +19,33 @@ struct Message<'r> {
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
-struct Response<'r> {
-    status: &'r str,
+struct JsonResponse<'r> {
+    status: u16,
     message: &'r str,
 }
 
 #[catch(404)]
-fn not_found() -> &'static str {
-    "404: Not found"
+fn not_found() -> Json<JsonResponse<'static>> {
+    Json::from(JsonResponse {
+        status: Status::NotFound.code,
+        message: "Not found",
+    })
+}
+
+#[catch(500)]
+fn server_error() -> Json<JsonResponse<'static>> {
+    Json::from(JsonResponse {
+        status: Status::InternalServerError.code,
+        message: "Server is broken. Send help.",
+    })
 }
 
 #[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
+fn index() -> Json<JsonResponse<'static>> {
+    Json::from(JsonResponse {
+        status: Status::Ok.code,
+        message: "Hello world!",
+    })
 }
 
 #[get("/contact")]
