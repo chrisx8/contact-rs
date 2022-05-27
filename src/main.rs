@@ -5,16 +5,22 @@ use rocket::serde::json::Json;
 use rocket::serde::Deserialize;
 use rocket::serde::Serialize;
 use rocket::Request;
+use validator::Validate;
 mod hcaptcha;
 mod mail;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 #[serde(crate = "rocket::serde")]
 struct Message<'r> {
+    #[validate(length(min = 1))]
     name: &'r str,
+    #[validate(email)]
     email: &'r str,
+    #[validate(length(min = 1))]
     subject: &'r str,
+    #[validate(length(min = 1))]
     message: &'r str,
+    #[validate(length(equal = 36))]
     h_captcha_response: &'r str,
 }
 
@@ -45,14 +51,14 @@ fn default_error(status: Status, _request: &Request) -> Json<StatusMsg<'static>>
     })
 }
 
-/* HTTP 400 (Captcha failure) catcher for /contact
+/* HTTP 400 catcher for /contact (Invalid Request or Bad Captcha)
    Returns Json StatusMsg (see above)
 */
 #[catch(400)]
-fn contact_captcha_error() -> Json<StatusMsg<'static>> {
+fn contact_invalid_req() -> Json<StatusMsg<'static>> {
     Json::from(StatusMsg {
         status: Status::BadRequest.code,
-        message: "Captcha validation failed.",
+        message: "Invalid Request: Please check your input and try again.",
     })
 }
 
@@ -75,6 +81,12 @@ fn index() -> Json<StatusMsg<'static>> {
 */
 #[post("/contact", format = "json", data = "<message>")]
 async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'_>>), Status> {
+    // validate json request
+    match message.validate() {
+        Ok(_) => (),
+        Err(_) => return Err(Status::BadRequest),
+    };
+
     // get app config
     let (mail_from, mail_to) = get_config();
 
@@ -82,7 +94,7 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
     let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
     match hcaptcha_result {
         Ok(_) => {}
-        Err(_e) => return Err(Status::BadRequest),
+        Err(_) => return Err(Status::BadRequest),
     };
 
     // send email
@@ -119,7 +131,7 @@ fn rocket() -> _ {
     mail::check_config();
 
     rocket::build()
-        .register("/contact", catchers![contact_captcha_error])
+        .register("/contact", catchers![contact_invalid_req])
         .register("/", catchers![default_error])
         .mount("/", routes![index, contact])
 }
