@@ -75,6 +75,9 @@ fn index() -> Json<StatusMsg<'static>> {
 */
 #[post("/contact", format = "json", data = "<message>")]
 async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'_>>), Status> {
+    // get app config
+    let (mail_from, mail_to) = get_config();
+
     // validate hcaptcha first
     let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
     match hcaptcha_result {
@@ -83,13 +86,13 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
     };
 
     // send email
-    let mail_from = format!("{} <{}>", message.name, "from@localhost");
-    let mail_subject = format!("[Contact Form] {}", message.subject);
+    let from = format!("{} <{}>", message.name, mail_from);
+    let subject = format!("[Contact Form] {}", message.subject);
     let m = mail::Mail {
-        from: mail_from.as_str(),
+        from: from.as_str(),
         reply_to: message.email,
-        to: "to@localhost",
-        subject: mail_subject.as_str(),
+        to: mail_to,
+        subject: subject.as_str(),
         body: message.message,
     };
     let mail_result = mail::send_email(&m);
@@ -111,6 +114,10 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
 
 #[launch]
 fn rocket() -> _ {
+    // validate config here
+    get_config();
+    mail::check_config();
+
     rocket::build()
         .register("/contact", catchers![contact_captcha_error])
         .register("/", catchers![default_error])
