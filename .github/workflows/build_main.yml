@@ -5,7 +5,28 @@ on:
   schedule:
     - cron: '0 3 * * 0'
 jobs:
-  build:
+  build_binary:
+    name: Build binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+      - name: Strip binary
+        run: strip /home/runner/work/contact-rs/contact-rs/target/release/contact-rs
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: contact-rs_x86_64-unknown-linux-gnu
+          path: /home/runner/work/contact-rs/contact-rs/target/release/contact-rs
+  build_container:
     name: Build container image
     runs-on: ubuntu-latest
     env:
