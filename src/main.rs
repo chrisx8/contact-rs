@@ -25,6 +25,18 @@ struct StatusMsg<'r> {
     message: &'r str,
 }
 
+/* Get MAIL_FROM and MAIL_TO from environment
+   Returns tuple (MAIL_FROM, MAIL_TO)
+*/
+fn get_config() -> (&'static str, &'static str) {
+    let from = option_env!("MAIL_FROM").expect("$MAIL_FROM is not defined!");
+    let to = option_env!("MAIL_TO").expect("$MAIL_TO is not defined!");
+    (from, to)
+}
+
+/* Generic HTTP error catcher
+   Returns JSON StatusMsg (see above)
+*/
 #[catch(default)]
 fn default_error(status: Status, _request: &Request) -> Json<StatusMsg<'static>> {
     Json::from(StatusMsg {
@@ -33,6 +45,9 @@ fn default_error(status: Status, _request: &Request) -> Json<StatusMsg<'static>>
     })
 }
 
+/* HTTP 400 (Captcha failure) catcher for /contact
+   Returns Json StatusMsg (see above)
+*/
 #[catch(400)]
 fn contact_captcha_error() -> Json<StatusMsg<'static>> {
     Json::from(StatusMsg {
@@ -41,14 +56,9 @@ fn contact_captcha_error() -> Json<StatusMsg<'static>> {
     })
 }
 
-#[catch(500)]
-fn contact_server_error() -> Json<StatusMsg<'static>> {
-    Json::from(StatusMsg {
-        status: Status::InternalServerError.code,
-        message: "Server is broken. Send help.",
-    })
-}
-
+/* GET /
+   Returns HTTP 200 "Hello world" as Json StatusMsg (see above)
+*/
 #[get("/")]
 fn index() -> Json<StatusMsg<'static>> {
     Json::from(StatusMsg {
@@ -57,13 +67,19 @@ fn index() -> Json<StatusMsg<'static>> {
     })
 }
 
+/* POST /contact
+   Returns Json StatusMsg (see above)
+   HTTP 201 if successful
+   HTTP 400 if Captcha validation fails
+   HTTP 500 if server-side error occurs
+*/
 #[post("/contact", format = "json", data = "<message>")]
 async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'_>>), Status> {
     // validate hcaptcha first
     let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
     match hcaptcha_result {
         Ok(_) => {}
-        Err(_e) => return Err(Status::BadRequest)
+        Err(_e) => return Err(Status::BadRequest),
     };
 
     // send email
@@ -96,10 +112,7 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .register(
-            "/contact",
-            catchers![contact_captcha_error, contact_server_error],
-        )
+        .register("/contact", catchers![contact_captcha_error])
         .register("/", catchers![default_error])
         .mount("/", routes![index, contact])
 }

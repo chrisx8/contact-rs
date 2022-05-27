@@ -17,6 +17,10 @@ pub struct Mail<'a> {
     pub body: &'a str,
 }
 
+/* Get SMTP config from environment variables
+   Returns SMTPConfig struct (see above)
+   Throws Error when required options are missing or malformatted
+*/
 fn get_mail_config() -> SMTPConfig<'static> {
     SMTPConfig {
         host: option_env!("SMTP_HOST").expect("$SMTP_HOST is not defined!"),
@@ -29,8 +33,17 @@ fn get_mail_config() -> SMTPConfig<'static> {
     }
 }
 
+/* Pre-validate SMTP config before Rocket launch */
+pub fn check_config() {
+    get_mail_config();
+}
+
+/* Send an email
+   Specify email content as a Mail struct (see above)
+   Returns nothing if successful
+   Throws Error if there's an issue
+*/
 pub fn send_email(m: &Mail) -> Result<(), Box<dyn Error>> {
-    // TODO: Actually connect to SMTP and send emails
     let conf = get_mail_config();
 
     // connect to smtp server

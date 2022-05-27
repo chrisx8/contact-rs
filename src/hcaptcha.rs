@@ -5,6 +5,9 @@ struct HCaptchaConfig<'r> {
     secret_key: &'r str,
 }
 
+/* Get HCaptcha config from environment variables
+   Returns HCaptchaConfig struct (see above)
+*/
 fn get_hcaptcha_config() -> HCaptchaConfig<'static> {
     HCaptchaConfig {
         site_verify_url: "https://hcaptcha.com/siteverify",
