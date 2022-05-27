@@ -4,6 +4,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::serde::Deserialize;
 use rocket::serde::Serialize;
+use rocket::Request;
 mod hcaptcha;
 mod mail;
 
@@ -19,49 +20,51 @@ struct Message<'r> {
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
-struct JsonResponse<'r> {
+struct StatusMsg<'r> {
     status: u16,
     message: &'r str,
 }
 
-#[catch(404)]
-fn not_found() -> Json<JsonResponse<'static>> {
-    Json::from(JsonResponse {
-        status: Status::NotFound.code,
-        message: "Not found",
+#[catch(default)]
+fn default_error(status: Status, _request: &Request) -> Json<StatusMsg<'static>> {
+    Json::from(StatusMsg {
+        status: status.code,
+        message: status.reason().unwrap(),
+    })
+}
+
+#[catch(400)]
+fn contact_captcha_error() -> Json<StatusMsg<'static>> {
+    Json::from(StatusMsg {
+        status: Status::BadRequest.code,
+        message: "Captcha validation failed.",
     })
 }
 
 #[catch(500)]
-fn server_error() -> Json<JsonResponse<'static>> {
-    Json::from(JsonResponse {
+fn contact_server_error() -> Json<StatusMsg<'static>> {
+    Json::from(StatusMsg {
         status: Status::InternalServerError.code,
         message: "Server is broken. Send help.",
     })
 }
 
 #[get("/")]
-fn index() -> Json<JsonResponse<'static>> {
-    Json::from(JsonResponse {
+fn index() -> Json<StatusMsg<'static>> {
+    Json::from(StatusMsg {
         status: Status::Ok.code,
         message: "Hello world!",
     })
 }
 
 #[post("/contact", format = "json", data = "<message>")]
-async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<JsonResponse<'_>>), Status> {
+async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'_>>), Status> {
     // validate hcaptcha first
     let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
     match hcaptcha_result {
         Ok(_) => {}
         Err(_e) => {
-            return Ok((
-                Status::BadRequest,
-                Json::from(JsonResponse {
-                    status: Status::BadRequest.code,
-                    message: "Captcha validation failed.",
-                }),
-            ))
+            return Err(Status::BadRequest);
         }
     };
 
@@ -80,7 +83,7 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<JsonRespons
     match mail_result {
         Ok(_) => Ok((
             Status::Created,
-            Json::from(JsonResponse {
+            Json::from(StatusMsg {
                 status: Status::Created.code,
                 message: "Thanks for reaching out!",
             }),
@@ -95,6 +98,10 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<JsonRespons
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .register("/", catchers![not_found, server_error])
+        .register(
+            "/contact",
+            catchers![contact_captcha_error, contact_server_error],
+        )
+        .register("/", catchers![default_error])
         .mount("/", routes![index, contact])
 }

@@ -1,4 +1,4 @@
-// use lettre::transport::smtp::authentication::Credentials;
+use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 use std::error::Error;
 
@@ -11,6 +11,8 @@ pub struct Mail<'a> {
 }
 
 pub fn send_email(m: &Mail) -> Result<(), Box<dyn Error>> {
+    // TODO: Actually connect to SMTP and send emails
+
     // connect to smtp server
     // let creds = Credentials::new("user".to_string(), "pass".to_string());
     let mailer = SmtpTransport::builder_dangerous("127.0.0.1")
