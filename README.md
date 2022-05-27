@@ -1,5 +1,7 @@
 # contact-rs
 
+[![Build](https://github.com/chrisx8/contact-rs/actions/workflows/build_main.yml/badge.svg)](https://github.com/chrisx8/contact-rs/actions/workflows/build_main.yml)
+
 A fast, simple, and memory-safe contact form processor, written in Rust
 
 ## Configuration
