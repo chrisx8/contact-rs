@@ -1,14 +1,28 @@
 use std::error::Error;
 
-const HCAPTCHA_URL: &str = "https://hcaptcha.com/siteverify";
+struct HCaptchaConfig<'r> {
+    site_verify_url: &'r str,
+    secret_key: &'r str,
+}
+
+fn get_hcaptcha_config() -> HCaptchaConfig<'static> {
+    HCaptchaConfig {
+        site_verify_url: "https://hcaptcha.com/siteverify",
+        secret_key: option_env!("HCAPTCHA_SECRET").unwrap_or(""),
+    }
+}
 
 pub async fn validate_hcaptcha(respose: &str) -> Result<(), Box<dyn Error>> {
-    let hcaptcha_secret: &str =
-        option_env!("HCAPTCHA_SECRET").expect("$HCAPTCHA_SECRET is not defined!");
+    let config = get_hcaptcha_config();
 
-    let body = [("secret", hcaptcha_secret), ("response", respose)];
+    // skip validation if secret key is unset
+    if config.secret_key == "" {
+        return Ok(());
+    }
+
+    let body = [("secret", config.secret_key), ("response", respose)];
     let client = reqwest::Client::new();
-    let resp = client.post(HCAPTCHA_URL).form(&body).send().await?;
+    let resp = client.post(config.site_verify_url).form(&body).send().await?;
     match resp.error_for_status() {
         Ok(_) => Ok(()),
         Err(e) => Err(Box::new(e)),

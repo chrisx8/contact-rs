@@ -8,7 +8,7 @@ Configuration is handled via environment variables.
 
 | Environment variable   | Description                                                         | Default                                |
 | ---------------------- | ------------------------------------------------------------------- | -------------------------------------- |
-| `CORS_ALLOWED_ORIGINS` | CORS allowed origins, if CORS is needed                             | *blank* (no CORS)                      |
+| `HCAPTCHA_SECRET`      | hCaptcha Secret Key                                                 | `None` (hCaptcha will not be verified) |
 
 ## Installation
 

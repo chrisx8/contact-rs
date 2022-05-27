@@ -63,9 +63,7 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
     let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
     match hcaptcha_result {
         Ok(_) => {}
-        Err(_e) => {
-            return Err(Status::BadRequest);
-        }
+        Err(_e) => return Err(Status::BadRequest)
     };
 
     // send email
