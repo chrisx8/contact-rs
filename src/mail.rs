@@ -1,13 +1,14 @@
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
+use std::env;
 use std::error::Error;
 
-struct SMTPConfig<'r> {
+struct SMTPConfig {
     unencrypted_localhost: bool, // use unencrypted smtp server at localhost
-    host: &'r str,               // smtp hostname
+    host: String,                // smtp hostname
     port: u16,                   // smtp port
-    username: &'r str,           // smtp username, blank = no auth
-    password: &'r str,           // smtp password, blank = no auth
+    username: String,            // smtp username, blank = no auth
+    password: String,            // smtp password, blank = no auth
 }
 
 pub struct Mail<'a> {
@@ -22,19 +23,19 @@ pub struct Mail<'a> {
    Returns SMTPConfig struct (see above)
    Throws Error when required options are missing or malformatted
 */
-fn get_mail_config() -> SMTPConfig<'static> {
+fn get_mail_config() -> SMTPConfig {
     SMTPConfig {
-        unencrypted_localhost: option_env!("SMTP_UNENCRYPTED_LOCALHOST")
-            .unwrap_or("false")
+        unencrypted_localhost: env::var("SMTP_UNENCRYPTED_LOCALHOST")
+            .unwrap_or(String::from("false"))
             .parse()
             .unwrap_or(false),
-        host: option_env!("SMTP_HOST").expect("$SMTP_HOST is not defined!"),
-        port: option_env!("SMTP_PORT")
+        host: env::var("SMTP_HOST").expect("$SMTP_HOST is not defined!"),
+        port: env::var("SMTP_PORT")
             .expect("$SMTP_PORT is not defined!")
             .parse()
             .expect("$SMTP_PORT is invalid!"),
-        username: option_env!("SMTP_USERNAME").unwrap_or(""),
-        password: option_env!("SMTP_PASSWORD").unwrap_or(""),
+        username: env::var("SMTP_USERNAME").unwrap_or(String::new()),
+        password: env::var("SMTP_PASSWORD").unwrap_or(String::new()),
     }
 }
 
@@ -52,14 +53,14 @@ pub fn send_email(m: &Mail) -> Result<(), Box<dyn Error>> {
     let conf = get_mail_config();
 
     // connect to smtp server
-    let mut mailer_builder = SmtpTransport::relay(conf.host).unwrap().port(conf.port);
+    let mut mailer_builder = SmtpTransport::relay(&conf.host).unwrap().port(conf.port);
     // use unencrypted smtp server at localhost, $SMTP_HOST is ignored
     if conf.unencrypted_localhost {
         mailer_builder = SmtpTransport::builder_dangerous("localhost").port(conf.port);
     }
     // authenticate if credentials exist
     if conf.username != "" && conf.password != "" {
-        let creds = Credentials::new(conf.username.to_string(), conf.password.to_string());
+        let creds = Credentials::new(conf.username, conf.password);
         mailer_builder = mailer_builder.credentials(creds);
     }
     let mailer = mailer_builder.build();

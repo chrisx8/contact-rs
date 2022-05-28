@@ -5,6 +5,7 @@ use rocket::serde::json::Json;
 use rocket::serde::Deserialize;
 use rocket::serde::Serialize;
 use rocket::Request;
+use std::env;
 use validator::Validate;
 mod hcaptcha;
 mod mail;
@@ -34,9 +35,9 @@ struct StatusMsg<'r> {
 /* Get MAIL_FROM and MAIL_TO from environment
    Returns tuple (MAIL_FROM, MAIL_TO)
 */
-fn get_config() -> (&'static str, &'static str) {
-    let from = option_env!("MAIL_FROM").expect("$MAIL_FROM is not defined!");
-    let to = option_env!("MAIL_TO").expect("$MAIL_TO is not defined!");
+fn get_config() -> (String, String) {
+    let from = env::var("MAIL_FROM").expect("$MAIL_FROM is not defined!");
+    let to = env::var("MAIL_TO").expect("$MAIL_TO is not defined!");
     (from, to)
 }
 
@@ -101,10 +102,10 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
     let from = format!("{} <{}>", message.name, mail_from);
     let subject = format!("[Contact Form] {}", message.subject);
     let m = mail::Mail {
-        from: from.as_str(),
+        from: &from,
         reply_to: message.email,
-        to: mail_to,
-        subject: subject.as_str(),
+        to: &mail_to,
+        subject: &subject,
         body: message.message,
     };
     let mail_result = mail::send_email(&m);
