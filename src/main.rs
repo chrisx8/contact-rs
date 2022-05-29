@@ -7,6 +7,7 @@ use rocket::serde::Serialize;
 use rocket::Request;
 use std::env;
 use validator::Validate;
+mod cors;
 mod hcaptcha;
 mod mail;
 
@@ -131,6 +132,7 @@ fn rocket() -> _ {
     mail::check_config();
 
     rocket::build()
+        .attach(cors::CORS)
         .register("/contact", catchers![contact_invalid_req])
         .register("/", catchers![default_error])
         .mount("/", routes![index, contact])
