@@ -21,7 +21,6 @@ struct Message<'r> {
     subject: &'r str,
     #[validate(length(min = 1))]
     message: &'r str,
-    #[validate(length(equal = 36))]
     h_captcha_response: &'r str,
 }
 
