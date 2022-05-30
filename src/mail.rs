@@ -11,12 +11,12 @@ struct SMTPConfig {
     password: String,            // smtp password, blank = no auth
 }
 
-pub struct Mail<'a> {
-    pub from: &'a str,
-    pub reply_to: &'a str,
-    pub to: &'a str,
-    pub subject: &'a str,
-    pub body: &'a str,
+pub struct Mail {
+    pub from: String,
+    pub reply_to: String,
+    pub to: String,
+    pub subject: String,
+    pub body: String,
 }
 
 /* Get SMTP config from environment variables
@@ -70,8 +70,8 @@ pub fn send_email(m: &Mail) -> Result<(), Box<dyn Error>> {
         .from(m.from.parse().unwrap())
         .reply_to(m.reply_to.parse().unwrap())
         .to(m.to.parse().unwrap())
-        .subject(m.subject.to_string())
-        .body(m.body.to_string())
+        .subject(m.subject.to_owned())
+        .body(m.body.to_owned())
         .unwrap();
 
     // send email

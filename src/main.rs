@@ -5,6 +5,7 @@ use rocket::serde::json::Json;
 use rocket::serde::Deserialize;
 use rocket::serde::Serialize;
 use rocket::Request;
+use std::borrow::Cow;
 use std::env;
 use validator::Validate;
 
@@ -13,7 +14,6 @@ mod hcaptcha;
 mod mail;
 
 #[derive(Deserialize, Validate)]
-#[serde(crate = "rocket::serde")]
 struct Message<'r> {
     #[validate(length(min = 1))]
     name: &'r str,
@@ -22,12 +22,12 @@ struct Message<'r> {
     #[validate(length(min = 1))]
     subject: &'r str,
     #[validate(length(min = 1))]
-    message: &'r str,
+    #[serde(borrow)]
+    message: Cow<'r, str>,
     h_captcha_response: &'r str,
 }
 
 #[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
 struct StatusMsg<'r> {
     status: u16,
     message: &'r str,
@@ -46,10 +46,10 @@ fn get_config() -> (String, String) {
    Returns JSON StatusMsg (see above)
 */
 #[catch(default)]
-fn default_error(status: Status, _request: &Request) -> Json<StatusMsg<'static>> {
+fn default_error<'r>(status: Status, _: &'r Request) -> Json<StatusMsg<'r>> {
     Json::from(StatusMsg {
         status: status.code,
-        message: status.reason().unwrap(),
+        message: status.reason().unwrap_or(""),
     })
 }
 
@@ -75,7 +75,6 @@ fn index() -> Json<StatusMsg<'static>> {
     })
 }
 
-// handle preflight check for CORS request
 /* OPTIONS /contact
    Allows CORS preflight request. Returns HTTP 204.
 */
@@ -108,18 +107,20 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
         // has error - abort
         Some(_) => return Err(Status::InternalServerError),
         // no error - check success
-        None => if !hcaptcha_ok { return Err(Status::BadRequest) },
+        None => {
+            if !hcaptcha_ok {
+                return Err(Status::BadRequest);
+            }
+        }
     };
 
     // send email
-    let from = format!("{} <{}>", message.name, mail_from);
-    let subject = format!("[Contact Form] {}", message.subject);
     let m = mail::Mail {
-        from: &from,
-        reply_to: message.email,
-        to: &mail_to,
-        subject: &subject,
-        body: message.message,
+        from: format!("{} <{}>", message.name, mail_from),
+        reply_to: message.email.to_owned(),
+        to: mail_to,
+        subject: format!("[Contact Form] {}", message.subject),
+        body: message.message.to_string(),
     };
     let mail_result = mail::send_email(&m);
     // handle potential email errors & respond
@@ -128,7 +129,7 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
             Status::Created,
             Json::from(StatusMsg {
                 status: Status::Created.code,
-                message: "Thanks for reaching out!",
+                message: "Your message has been sent successfully. Thanks for reaching out!",
             }),
         )),
         Err(e) => {

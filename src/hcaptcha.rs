@@ -3,7 +3,7 @@ use std::env;
 use std::error::Error;
 
 struct HCaptchaConfig {
-    site_verify_url: String,
+    site_verify_url: &'static str,
     secret_key: String,
 }
 
@@ -17,7 +17,7 @@ struct HCaptchaResponse {
 */
 fn get_hcaptcha_config() -> HCaptchaConfig {
     HCaptchaConfig {
-        site_verify_url: String::from("https://hcaptcha.com/siteverify"),
+        site_verify_url: "https://hcaptcha.com/siteverify",
         secret_key: env::var("HCAPTCHA_SECRET").unwrap_or(String::new()),
     }
 }
@@ -38,7 +38,7 @@ pub async fn validate_hcaptcha(respose: &str) -> (bool, Option<Box<dyn Error>>) 
     // request validation
     let body = [
         ("secret", config.secret_key),
-        ("response", respose.to_string()),
+        ("response", respose.to_owned()),
     ];
     let client = reqwest::Client::new();
     let resp = client
