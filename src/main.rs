@@ -7,6 +7,7 @@ use rocket::serde::Serialize;
 use rocket::Request;
 use std::env;
 use validator::Validate;
+
 mod cors;
 mod hcaptcha;
 mod mail;
@@ -74,6 +75,15 @@ fn index() -> Json<StatusMsg<'static>> {
     })
 }
 
+// handle preflight check for CORS request
+/* OPTIONS /contact
+   Allows CORS preflight request. Returns HTTP 204.
+*/
+#[options("/contact")]
+fn contact_preflight() -> Status {
+    Status::NoContent
+}
+
 /* POST /contact
    Returns Json StatusMsg (see above)
    HTTP 201 if successful
@@ -92,10 +102,13 @@ async fn contact(message: Json<Message<'_>>) -> Result<(Status, Json<StatusMsg<'
     let (mail_from, mail_to) = get_config();
 
     // validate hcaptcha first
-    let hcaptcha_result = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
-    match hcaptcha_result {
-        Ok(_) => {}
-        Err(_) => return Err(Status::BadRequest),
+    let (hcaptcha_ok, hcaptcha_err) = hcaptcha::validate_hcaptcha(message.h_captcha_response).await;
+    // handle error during validation and check success
+    match hcaptcha_err {
+        // has error - abort
+        Some(_) => return Err(Status::InternalServerError),
+        // no error - check success
+        None => if !hcaptcha_ok { return Err(Status::BadRequest) },
     };
 
     // send email
@@ -135,5 +148,5 @@ fn rocket() -> _ {
         .attach(cors::CORS)
         .register("/contact", catchers![contact_invalid_req])
         .register("/", catchers![default_error])
-        .mount("/", routes![index, contact])
+        .mount("/", routes![index, contact, contact_preflight])
 }

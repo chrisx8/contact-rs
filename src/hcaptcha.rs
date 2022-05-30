@@ -1,9 +1,15 @@
+use serde::Deserialize;
 use std::env;
 use std::error::Error;
 
 struct HCaptchaConfig {
     site_verify_url: String,
     secret_key: String,
+}
+
+#[derive(Deserialize)]
+struct HCaptchaResponse {
+    success: bool,
 }
 
 /* Get HCaptcha config from environment variables
@@ -16,14 +22,20 @@ fn get_hcaptcha_config() -> HCaptchaConfig {
     }
 }
 
-pub async fn validate_hcaptcha(respose: &str) -> Result<(), Box<dyn Error>> {
+/* Validate hCaptcha response with the hCaptcha API
+   Returns (bool, Option<Box<Error>>):
+    * `bool`: whether validation is successful
+    * `Option<Box<Error>>`: any errors during validation (Some<Error> or None
+       for no error)
+*/
+pub async fn validate_hcaptcha(respose: &str) -> (bool, Option<Box<dyn Error>>) {
     let config = get_hcaptcha_config();
-
     // skip validation if secret key is unset
     if config.secret_key == "" {
-        return Ok(());
+        return (true, None);
     }
 
+    // request validation
     let body = [
         ("secret", config.secret_key),
         ("response", respose.to_string()),
@@ -33,9 +45,11 @@ pub async fn validate_hcaptcha(respose: &str) -> Result<(), Box<dyn Error>> {
         .post(config.site_verify_url)
         .form(&body)
         .send()
-        .await?;
-    match resp.error_for_status() {
-        Ok(_) => Ok(()),
-        Err(e) => Err(Box::new(e)),
-    }
+        .await
+        .unwrap();
+    // check response & handle connection issues
+    match resp.json::<HCaptchaResponse>().await {
+        Ok(j) => return (j.success, None),
+        Err(e) => return (false, Some(Box::new(e))),
+    };
 }
