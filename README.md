@@ -97,6 +97,6 @@ Possible responses:
 
 ## License
 
-[GNU AGPLv3](LICENSE)
+[MIT License](LICENSE)
 
 Copyright (c) 2022 Chris Xiao
