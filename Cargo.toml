@@ -1,11 +1,11 @@
 [package]
 name = "contact-rs"
-version = "0.1.2"
+version = "0.1.6"
 edition = "2021"
 
 [dependencies]
 lettre = { version = "0.10.1", default-features = false, features = [ "builder", "rustls-tls", "smtp-transport" ] }
 reqwest = { version = "0.11", default-features = false, features = [ "json", "rustls-tls" ] }
 rocket = { version = "0.5.0-rc.2", features = [ "json" ] }
-serde = "1.0.141"
+serde = "1.0.142"
 validator = { version = "0.16", features = [ "derive" ] }
