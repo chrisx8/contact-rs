@@ -1,27 +1,28 @@
 # ====== BUILD ======
-FROM docker.io/rust:1-alpine as build
-
-ENV RUST_TARGET=x86_64-unknown-linux-musl
+FROM docker.io/rust:1-slim-bullseye as build
 
 COPY . /tmp
 
 WORKDIR /tmp
 
-RUN apk add --no-cache binutils make musl-dev perl && \
-    cargo build --locked --release --target $RUST_TARGET && \
-    strip target/$RUST_TARGET/release/contact-rs
+RUN apt-get update && \
+    apt-get install -y pkg-config libssl-dev && \
+    cargo build --jobs "$(nproc)" --locked --release && \
+    strip target/release/contact-rs
 
 # ====== RUNTIME ======
-FROM docker.io/alpine:latest
+FROM docker.io/debian:bullseye-slim
 
-ENV RUST_TARGET=x86_64-unknown-linux-musl \
-    ROCKET_PROFILE=release \
+ENV ROCKET_PROFILE=release \
     ROCKET_ADDRESS=0.0.0.0 \
     ROCKET_PORT=8000
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update && \
+    apt-get install -y ca-certificates tzdata && \
+    apt-get clean && \
+    rm -rf /var/cache/apt /var/lib/apt
 
-COPY --from=build /tmp/target/$RUST_TARGET/release/contact-rs /usr/local/bin
+COPY --from=build /tmp/target/release/contact-rs /usr/local/bin
 
 EXPOSE 8000
 USER nobody
