@@ -5,9 +5,7 @@ COPY . /tmp
 
 WORKDIR /tmp
 
-RUN apt-get update && \
-    apt-get install -y pkg-config libssl-dev && \
-    cargo build --jobs "$(nproc)" --locked --release && \
+RUN cargo build --jobs "$(nproc)" --locked --release && \
     strip target/release/contact-rs
 
 # ====== RUNTIME ======
