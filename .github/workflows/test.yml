@@ -42,8 +42,6 @@ jobs:
           sleep 10
           curl -Lfv localhost:8000
           killall contact-rs
-      - name: Strip binary
-        run: strip target/${{ env.TARGET }}/debug/contact-rs
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
