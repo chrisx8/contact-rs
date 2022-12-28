@@ -146,7 +146,7 @@ fn rocket() -> _ {
     mail::check_config();
 
     rocket::build()
-        .attach(cors::CORS)
+        .attach(cors::CORSHeaders)
         .register("/contact", catchers![contact_invalid_req])
         .register("/", catchers![default_error])
         .mount("/", routes![index, contact, contact_preflight])

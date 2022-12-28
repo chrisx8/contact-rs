@@ -18,7 +18,7 @@ struct HCaptchaResponse {
 fn get_hcaptcha_config() -> HCaptchaConfig {
     HCaptchaConfig {
         site_verify_url: "https://hcaptcha.com/siteverify",
-        secret_key: env::var("HCAPTCHA_SECRET").unwrap_or(String::new()),
+        secret_key: env::var("HCAPTCHA_SECRET").unwrap_or_default(),
     }
 }
 
@@ -31,7 +31,7 @@ fn get_hcaptcha_config() -> HCaptchaConfig {
 pub async fn validate_hcaptcha(respose: &str) -> (bool, Option<Box<dyn Error>>) {
     let config = get_hcaptcha_config();
     // skip validation if secret key is unset
-    if config.secret_key == "" {
+    if config.secret_key.is_empty() {
         return (true, None);
     }
 
@@ -49,7 +49,7 @@ pub async fn validate_hcaptcha(respose: &str) -> (bool, Option<Box<dyn Error>>) 
         .unwrap();
     // check response & handle connection issues
     match resp.json::<HCaptchaResponse>().await {
-        Ok(j) => return (j.success, None),
-        Err(e) => return (false, Some(Box::new(e))),
-    };
+        Ok(j) => (j.success, None),
+        Err(e) => (false, Some(Box::new(e))),
+    }
 }

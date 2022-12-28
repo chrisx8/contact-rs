@@ -5,10 +5,10 @@ use rocket::http::Header;
 use rocket::{Request, Response};
 use std::env;
 
-pub struct CORS;
+pub struct CORSHeaders;
 
 #[rocket::async_trait]
-impl Fairing for CORS {
+impl Fairing for CORSHeaders {
     fn info(&self) -> Info {
         Info {
             name: "Add CORS headers to responses",

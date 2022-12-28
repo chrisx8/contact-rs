@@ -26,7 +26,7 @@ pub struct Mail {
 fn get_mail_config() -> SMTPConfig {
     SMTPConfig {
         unencrypted_localhost: env::var("SMTP_UNENCRYPTED_LOCALHOST")
-            .unwrap_or(String::from("false"))
+            .unwrap_or_else(|_| String::from("false"))
             .parse()
             .unwrap_or(false),
         host: env::var("SMTP_HOST").expect("$SMTP_HOST is not defined!"),
@@ -34,8 +34,8 @@ fn get_mail_config() -> SMTPConfig {
             .expect("$SMTP_PORT is not defined!")
             .parse()
             .expect("$SMTP_PORT is invalid!"),
-        username: env::var("SMTP_USERNAME").unwrap_or(String::new()),
-        password: env::var("SMTP_PASSWORD").unwrap_or(String::new()),
+        username: env::var("SMTP_USERNAME").unwrap_or_default(),
+        password: env::var("SMTP_PASSWORD").unwrap_or_default(),
     }
 }
 
@@ -59,7 +59,7 @@ pub fn send_email(m: &Mail) -> Result<(), Box<dyn Error>> {
         mailer_builder = SmtpTransport::builder_dangerous("localhost").port(conf.port);
     }
     // authenticate if credentials exist
-    if conf.username != "" && conf.password != "" {
+    if !conf.username.is_empty() && !conf.password.is_empty() {
         let creds = Credentials::new(conf.username, conf.password);
         mailer_builder = mailer_builder.credentials(creds);
     }
