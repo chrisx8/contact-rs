@@ -1,9 +1,9 @@
-name: Dependency Review
+name: dependency review
 on:
   pull_request:
 jobs:
-  dependency-review:
-    name: Dependency Review
+  dependency_review:
+    name: Dependency review
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

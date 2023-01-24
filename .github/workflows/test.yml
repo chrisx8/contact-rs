@@ -1,4 +1,4 @@
-name: Test
+name: test
 on:
   push:
     branches-ignore: main
@@ -51,15 +51,17 @@ jobs:
     name: Test container image
     runs-on: ubuntu-latest
     env:
-      PACKAGE_NAME: contact-rs
+      IMAGE_NAME: contact-rs
     steps:
       - uses: actions/checkout@v3
       - name: Build container
-        run: docker build -t $PACKAGE_NAME:test .
+        run: |
+          docker build -t "$IMAGE_NAME:test" .
       - name: Launch container
-        run: docker run -d -p 8000:8000 --env-file .env.example --name ${{ env.PACKAGE_NAME }} ${{ env.PACKAGE_NAME }}:test
+        run: |
+          docker run -d -p 8000:8000 --env-file .env.example --name "$IMAGE_NAME" "$IMAGE_NAME:test"
       - name: Test web server in container
         run: |
           sleep 5
           curl -Lfv localhost:8000
-          docker kill ${{ env.PACKAGE_NAME }}
+          docker kill "$IMAGE_NAME"
