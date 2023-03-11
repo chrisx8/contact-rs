@@ -12,8 +12,10 @@ jobs:
     env:
       TARGET: x86_64-unknown-linux-gnu
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
         with:
           key: cargo-registry-${{ runner.os }}
           path: ~/.cargo/registry
@@ -21,18 +23,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
-      - name: Set up Rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          target: ${{ env.TARGET }}
-          toolchain: stable
+      - name: Install Rust stable toolchain
+        run: |
+          rustup toolchain install --profile=minimal stable
+          rustup target install "$TARGET"
       - name: Cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --jobs 2 --locked --release --target ${{ env.TARGET }}
+        run: |
+          cargo build --jobs "$(nproc)" --locked --release --target "$TARGET"
       - name: Strip binary
-        run: strip target/${{ env.TARGET }}/release/contact-rs
+        run: |
+          strip "target/$TARGET/release/contact-rs"
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:

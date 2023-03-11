@@ -11,30 +11,40 @@ jobs:
     env:
       TARGET: x86_64-unknown-linux-gnu
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
         with:
-          key: cargo-registry-${{ runner.os }}
+          key: cargo-registry-${{ hashFiles('Cargo.lock') }}
           path: ~/.cargo/registry
+      - name: Cache pre-commit env
+        uses: actions/cache@v3
+        with:
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          path: ~/.cache/pre-commit
+      - name: Install pre-commit
+        run: |
+          pip install -U pre-commit
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config libssl-dev
-      - name: Set up Rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          target: ${{ env.TARGET }}
-          toolchain: stable
+      - name: Install Rust stable toolchain
+        run: |
+          rustup toolchain install --profile=minimal stable
+          rustup target install "$TARGET"
+          rustup component add clippy rustfmt
       - name: Cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --jobs 2 --locked --target ${{ env.TARGET }}
+        run: |
+          cargo build --jobs "$(nproc)" --locked --target "$TARGET"
       - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --jobs 2 --locked --target ${{ env.TARGET }}
+        run: |
+          cargo test --jobs "$(nproc)" --locked --target "$TARGET"
+      - name: Run pre-commit tests
+        run: |
+          pre-commit install --install-hooks
+          pre-commit run --all
       - name: Test web server
         run: |
           grep -v '^#' .env.example
