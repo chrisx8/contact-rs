@@ -53,17 +53,6 @@ fn default_error<'r>(status: Status, _: &'r Request) -> Json<StatusMsg<'r>> {
     })
 }
 
-/* HTTP 400 catcher for /contact (Invalid Request or Bad Captcha)
-   Returns Json StatusMsg (see above)
-*/
-#[catch(400)]
-fn contact_invalid_req() -> Json<StatusMsg<'static>> {
-    Json::from(StatusMsg {
-        status: Status::BadRequest.code,
-        message: "Invalid Request: Please check your input and try again.",
-    })
-}
-
 /* GET /
    Returns HTTP 200 "Hello world" as Json StatusMsg (see above)
 */
@@ -147,7 +136,6 @@ fn rocket() -> _ {
 
     rocket::build()
         .attach(cors::CORSHeaders)
-        .register("/contact", catchers![contact_invalid_req])
         .register("/", catchers![default_error])
         .mount("/", routes![index, contact, contact_preflight])
 }
