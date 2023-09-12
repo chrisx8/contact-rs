@@ -1,5 +1,5 @@
 # ====== BUILD ======
-FROM docker.io/rust:1-slim-bullseye as build
+FROM docker.io/rust:1-slim-bookworm as build
 
 COPY . /tmp
 
@@ -9,7 +9,7 @@ RUN cargo build --jobs "$(nproc)" --locked --release && \
     strip target/release/contact-rs
 
 # ====== RUNTIME ======
-FROM docker.io/debian:bullseye-slim
+FROM docker.io/debian:bookworm-slim
 
 ENV ROCKET_PROFILE=release \
     ROCKET_ADDRESS=0.0.0.0 \

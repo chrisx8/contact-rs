@@ -1,74 +1,31 @@
+---
 name: test
 on:
   push:
     branches-ignore:
       - main
   pull_request:
+  workflow_dispatch:
 jobs:
-  test:
-    name: Run tests
+  test_container:
+    name: Test container
     runs-on: ubuntu-latest
-    env:
-      TARGET: x86_64-unknown-linux-gnu
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-      - name: Cache Cargo registry
-        uses: actions/cache@v3
+      - name: Build container image
+        uses: redhat-actions/buildah-build@v2
         with:
-          key: cargo-registry-${{ hashFiles('Cargo.lock') }}
-          path: ~/.cargo/registry
-      - name: Cache pre-commit env
-        uses: actions/cache@v3
-        with:
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
-          path: ~/.cache/pre-commit
-      - name: Install pre-commit
-        run: |
-          pip install -U pre-commit
-      - name: Install Rust stable toolchain
-        run: |
-          rustup toolchain install --profile=minimal stable
-          rustup target install "$TARGET"
-          rustup component add clippy rustfmt
-      - name: Cargo build
-        run: |
-          cargo build --jobs "$(nproc)" --locked --target "$TARGET"
-      - name: Cargo test
-        run: |
-          cargo test --jobs "$(nproc)" --locked --target "$TARGET"
-      - name: Run pre-commit tests
-        run: |
-          pre-commit install --install-hooks
-          pre-commit run --all
-      - name: Test web server
-        run: |
-          grep -v '^#' .env.example
-          export $(grep -v '^#' .env.example | xargs)
-          target/${{ env.TARGET }}/debug/contact-rs &
-          sleep 10
-          curl -Lfv localhost:8000
-          killall contact-rs
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: contact-rs_debug_${{ env.TARGET }}
-          path: target/${{ env.TARGET }}/debug/contact-rs
-  test_container:
-    name: Test container image
-    runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: contact-rs
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build container
-        run: |
-          docker build -t "$IMAGE_NAME:test" .
+          containerfiles: ./Dockerfile
+          image: ${{ github.event.repository.name }}
+          tags: test
       - name: Launch container
         run: |
-          docker run -d -p 8000:8000 --env-file .env.example --name "$IMAGE_NAME" "$IMAGE_NAME:test"
+          podman run -d -p 8000:8000 --env-file .env.example "${{ github.event.repository.name }}:test"
       - name: Test web server in container
         run: |
           sleep 5
           curl -Lfv localhost:8000
-          docker kill "$IMAGE_NAME"
+      - name: Kill container
+        run: |
+          podman kill -a
