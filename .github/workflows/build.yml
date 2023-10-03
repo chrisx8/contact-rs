@@ -40,7 +40,6 @@ jobs:
     name: Build container image
     runs-on: ubuntu-latest
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
       IMAGE_TAG: latest
     steps:
       - name: Check out repo
