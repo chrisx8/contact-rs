@@ -1,5 +1,7 @@
 # contact-rs
 
+**⚠️ WARNING: Project is no longer maintained! ⚠️**
+
 [![build](https://github.com/chrisx8/contact-rs/actions/workflows/build.yml/badge.svg)](https://github.com/chrisx8/contact-rs/actions/workflows/build.yml)
 
 A fast, simple, and memory-safe contact form processor, written in [Rust](https://www.rust-lang.org/) and powered by [Rocket](https://rocket.rs/).
